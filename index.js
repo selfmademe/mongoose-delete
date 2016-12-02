@@ -78,7 +78,6 @@ module.exports = function (schema, options) {
     schema.add({
         deleted: {
             type: Boolean,
-            default: false,
             index: indexFields.deleted
         }
     });
@@ -90,13 +89,6 @@ module.exports = function (schema, options) {
     if (options.deletedBy === true) {
         schema.add({ deletedBy: { type: Schema.Types.ObjectId, index: indexFields.deletedBy }});
     }
-
-    schema.pre('save', function (next) {
-        if (!this.deleted) {
-            this.deleted = false;
-        }
-        next();
-    });
 
     if (options.overrideMethods) {
         var overrideItems = options.overrideMethods;
@@ -125,7 +117,7 @@ module.exports = function (schema, options) {
                     return Model[method].apply(this, arguments).where('deleted').ne(true);
                 };
                 schema.statics[method + 'Deleted'] = function () {
-                    return Model[method].apply(this, arguments).where('deleted').ne(false);
+                    return Model[method].apply(this, arguments).where('deleted').exists();
                 };
                 schema.statics[method + 'WithDeleted'] = function () {
                     return Model[method].apply(this, arguments);
@@ -142,7 +134,7 @@ module.exports = function (schema, options) {
                 schema.statics[method + 'Deleted'] = function () {
                     var args = parseUpdateArguments.apply(undefined, arguments);
 
-                    args[0].deleted = {'$ne': false};
+                    args[0].deleted = {'$exists': true};
 
                     return Model[method].apply(this, args);
                 };
@@ -206,7 +198,7 @@ module.exports = function (schema, options) {
     };
 
     schema.methods.restore = function (callback) {
-        this.deleted = false;
+        this.deleted = undefined;
         this.deletedAt = undefined;
         this.deletedBy = undefined;
         return this.save(callback);
@@ -219,7 +211,7 @@ module.exports = function (schema, options) {
         }
 
         var doc = {
-            deleted: false,
+            deleted: undefined,
             deletedAt: undefined,
             deletedBy: undefined
         };
